@@ -40,12 +40,20 @@ app.get('/api/health', (req, res) => {
 app.post('/api/convert', upload.single('file'), async (req, res) => {
   try {
     const { voice = 'Aria' } = req.body;
+    const MAX_CHARS = 5000;
+    const MAX_FILE_SIZE = 50 * 1024; // 50KB
     
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
+    if (req.file.size > MAX_FILE_SIZE) {
+      fs.unlinkSync(req.file.path);
+      return res.status(413).json({ error: `File too large. Maximum: ${MAX_FILE_SIZE / 1024}KB` });
+    }
+    
     if (!VOICES[voice]) {
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: `Unknown voice: ${voice}` });
     }
     
@@ -56,6 +64,13 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     if (!text || text.length === 0) {
       fs.unlinkSync(filePath);
       return res.status(400).json({ error: 'File is empty' });
+    }
+    
+    if (text.length > MAX_CHARS) {
+      fs.unlinkSync(filePath);
+      return res.status(413).json({ 
+        error: `Text too long. Maximum: ${MAX_CHARS} characters. Yours: ${text.length}` 
+      });
     }
     
     console.log(`Converting ${text.length} characters with voice ${voice}...`);

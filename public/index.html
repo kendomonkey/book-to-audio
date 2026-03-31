@@ -199,9 +199,15 @@
       
       const file = document.getElementById('file').files[0];
       const voice = document.getElementById('voice').value;
+      const MAX_FILE_SIZE = 50 * 1024; // 50KB
       
       if (!file) {
         showStatus('Please select a file', 'error');
+        return;
+      }
+      
+      if (file.size > MAX_FILE_SIZE) {
+        showStatus(`File too large (${(file.size/1024).toFixed(1)}KB). Max: 50KB`, 'error');
         return;
       }
       
@@ -240,8 +246,9 @@
     }
     
     function showDownloadLink(file, filename) {
+      const basename = file.split('/').pop();
       downloadDiv.innerHTML = `
-        <a href="${window.location.pathname}/api/download/${path.basename(file)}" download="${filename}">
+        <a href="${window.location.pathname}/api/download/${basename}" download="${filename}">
           ⬇️ Download MP3 (${filename})
         </a>
       `;
