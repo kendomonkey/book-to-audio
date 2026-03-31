@@ -121,6 +121,61 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
   }
 });
 
+// Text-to-audio endpoint (inline, no file)
+app.post('/api/text-to-audio', express.json(), async (req, res) => {
+  try {
+    const { text, voice = 'Aria' } = req.body;
+    const MAX_CHARS = 5000;
+    
+    if (!text || text.length === 0) {
+      return res.status(400).json({ error: 'Text is empty' });
+    }
+    
+    if (text.length > MAX_CHARS) {
+      return res.status(413).json({ 
+        error: `Text too long. Maximum: ${MAX_CHARS} characters` 
+      });
+    }
+    
+    if (!VOICES[voice]) {
+      return res.status(400).json({ error: `Unknown voice: ${voice}` });
+    }
+    
+    console.log(`Generating ${text.length} characters with voice ${voice}...`);
+    
+    const voiceId = VOICES[voice];
+    const url = `${ELEVENLABS_BASE}/text-to-speech/${voiceId}`;
+    
+    const response = await axios.post(url, {
+      text: text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75
+      }
+    }, {
+      headers: {
+        'xi-api-key': API_KEY,
+        'Content-Type': 'application/json'
+      },
+      responseType: 'arraybuffer'
+    });
+    
+    res.json({ 
+      audio: Buffer.from(response.data).toString('base64'),
+      size: response.data.length
+    });
+  } catch (error) {
+    console.error('Error:', error.message);
+    
+    if (error.response?.status === 402) {
+      return res.status(402).json({ error: 'ElevenLabs quota exceeded' });
+    }
+    
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Download endpoint
 app.get('/api/download/:file', (req, res) => {
   const filePath = path.join('outputs', req.params.file);
