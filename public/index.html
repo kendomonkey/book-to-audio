@@ -31,10 +31,18 @@
       position: relative;
     }
     
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 30px;
+    }
+    
+    .header-content h1 {
+      margin-bottom: 10px;
+    }
+    
     .library-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
       background: #667eea;
       color: white;
       border: none;
@@ -43,6 +51,8 @@
       cursor: pointer;
       font-weight: 600;
       font-size: 14px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     
     .library-btn:hover {
@@ -355,10 +365,13 @@
   </div>
   
   <div class="container">
-    <button class="library-btn" id="openLibrary">📚 Library</button>
-    
-    <h1>📖 Book to Audio</h1>
-    <p class="subtitle">Convert your manuscript to high-quality audio</p>
+    <div class="header">
+      <div class="header-content">
+        <h1>📖 Book to Audio</h1>
+        <p class="subtitle">Convert your manuscript to high-quality audio</p>
+      </div>
+      <button class="library-btn" id="openLibrary">📚 Library</button>
+    </div>
     
     <div class="two-column">
       <!-- File Upload Section -->
@@ -478,7 +491,7 @@
               <span>${new Date(item.timestamp).toLocaleDateString()}</span>
             </div>
             <audio controls style="width: 100%; margin-bottom: 10px;">
-              <source src="${window.location.pathname}/outputs/${item.filename}" type="audio/mpeg">
+              <source src="${window.location.pathname}/api/download/${item.filename}" type="audio/mpeg">
             </audio>
             <div class="library-item-controls">
               <button class="delete-btn" onclick="deleteAudio('${item.id}')">Delete</button>
@@ -582,7 +595,9 @@
           throw new Error(data.error || 'Generation failed');
         }
         
-        audioSource.src = `${window.location.pathname}/outputs/${data.filename}`;
+        // Construct proper path for audio file
+        const audioPath = `${window.location.pathname}/api/download/${data.filename}`;
+        audioSource.src = audioPath;
         audioPlayer.style.display = 'block';
         audioInfo.textContent = `✓ Generated (${(data.size / 1024).toFixed(1)}KB) • Cached for future use`;
         showTextStatus(`✓ Audio ready & saved to library`, 'success');
@@ -606,7 +621,7 @@
     function showDownloadLink(file, filename) {
       const basename = file.split('/').pop();
       downloadDiv.innerHTML = `
-        <a href="${window.location.pathname}/outputs/${basename}" download="${filename}">
+        <a href="${window.location.pathname}/api/download/${basename}" download="${filename}">
           ⬇️ Download MP3 (${filename})
         </a>
       `;
