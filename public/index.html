@@ -213,7 +213,7 @@
       submitBtn.disabled = true;
       
       try {
-        const response = await fetch('/api/convert', {
+        const response = await fetch(window.location.pathname + '/api/convert', {
           method: 'POST',
           body: formData
         });
@@ -241,7 +241,7 @@
     
     function showDownloadLink(file, filename) {
       downloadDiv.innerHTML = `
-        <a href="/api/download/${path.basename(file)}" download="${filename}">
+        <a href="${window.location.pathname}/api/download/${path.basename(file)}" download="${filename}">
           ⬇️ Download MP3 (${filename})
         </a>
       `;
