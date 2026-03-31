@@ -25,9 +25,28 @@
       background: white;
       border-radius: 12px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      max-width: 600px;
+      max-width: 900px;
       width: 100%;
       padding: 40px;
+      position: relative;
+    }
+    
+    .library-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .library-btn:hover {
+      background: #764ba2;
     }
     
     h1 {
@@ -40,6 +59,26 @@
       color: #666;
       margin-bottom: 30px;
       font-size: 14px;
+    }
+    
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    
+    @media (max-width: 768px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
     }
     
     .form-group {
@@ -55,7 +94,8 @@
     }
     
     input[type="file"],
-    select {
+    select,
+    textarea {
       width: 100%;
       padding: 12px;
       border: 2px solid #e0e0e0;
@@ -65,9 +105,16 @@
     }
     
     input[type="file"]:focus,
-    select:focus {
+    select:focus,
+    textarea:focus {
       outline: none;
       border-color: #667eea;
+    }
+    
+    textarea {
+      resize: vertical;
+      font-family: monospace;
+      min-height: 200px;
     }
     
     input[type="file"]::file-selector-button {
@@ -153,34 +200,187 @@
     .download-link a:hover {
       text-decoration: underline;
     }
+    
+    audio {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    
+    .audio-info {
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+    
+    /* Library Drawer */
+    .library-drawer {
+      position: fixed;
+      right: -400px;
+      top: 0;
+      width: 400px;
+      height: 100vh;
+      background: white;
+      box-shadow: -5px 0 20px rgba(0,0,0,0.2);
+      transition: right 0.3s;
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    
+    .library-drawer.open {
+      right: 0;
+    }
+    
+    .library-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: white;
+    }
+    
+    .library-header h2 {
+      font-size: 18px;
+      color: #333;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #666;
+      cursor: pointer;
+      padding: 0;
+      width: auto;
+    }
+    
+    .library-content {
+      padding: 20px;
+    }
+    
+    .library-item {
+      padding: 15px;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      background: #f9f9f9;
+    }
+    
+    .library-item-text {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+      font-style: italic;
+    }
+    
+    .library-item-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 10px;
+    }
+    
+    .library-item-controls {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .library-item-controls button {
+      flex: 1;
+      padding: 8px;
+      font-size: 13px;
+    }
+    
+    .delete-btn {
+      background: #ff4444 !important;
+    }
+    
+    .delete-btn:hover {
+      background: #cc0000 !important;
+    }
+    
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.3);
+      display: none;
+      z-index: 999;
+    }
+    
+    .overlay.open {
+      display: block;
+    }
+    
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #999;
+      text-align: center;
+    }
+    
+    footer p {
+      margin-bottom: 5px;
+    }
+    
+    footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    
+    footer a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+  <div class="overlay" id="libraryOverlay"></div>
+  
+  <div class="library-drawer" id="libraryDrawer">
+    <div class="library-header">
+      <h2>📚 Library</h2>
+      <button class="close-btn" id="closeLibrary">✕</button>
+    </div>
+    <div class="library-content" id="libraryContent">
+      <p style="color: #999; text-align: center;">Loading...</p>
+    </div>
+  </div>
+  
   <div class="container">
+    <button class="library-btn" id="openLibrary">📚 Library</button>
+    
     <h1>📖 Book to Audio</h1>
     <p class="subtitle">Convert your manuscript to high-quality audio</p>
     
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+    <div class="two-column">
       <!-- File Upload Section -->
       <div>
-        <h2 style="font-size: 16px; margin-bottom: 15px;">Upload File</h2>
+        <h3 class="section-title">Upload File</h3>
         <form id="converterForm">
-      <div class="form-group">
-        <label for="file">Select Text File</label>
-        <input type="file" id="file" name="file" accept=".txt" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="voice">Voice</label>
-        <select id="voice" name="voice">
-          <option value="Aria">Aria (Female)</option>
-          <option value="Bill">Bill (Male)</option>
-          <option value="Callum">Callum (Male)</option>
-          <option value="Lily">Lily (Female)</option>
-        </select>
-      </div>
-      
-      <button type="submit">Convert to Audio</button>
+          <div class="form-group">
+            <label for="file">Select Text File</label>
+            <input type="file" id="file" name="file" accept=".txt" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="voice">Voice</label>
+            <select id="voice" name="voice">
+              <option value="Aria">Aria (Female)</option>
+              <option value="Bill">Bill (Male)</option>
+              <option value="Callum">Callum (Male)</option>
+              <option value="Lily">Lily (Female)</option>
+            </select>
+          </div>
+          
+          <button type="submit">Convert to Audio</button>
         </form>
         
         <div id="status" class="status"></div>
@@ -189,11 +389,11 @@
       
       <!-- Textarea Section -->
       <div>
-        <h2 style="font-size: 16px; margin-bottom: 15px;">Paste & Play</h2>
+        <h3 class="section-title">Paste & Play</h3>
         <form id="textForm">
           <div class="form-group">
             <label for="textInput">Your Text</label>
-            <textarea id="textInput" name="text" placeholder="Paste your text here..." style="width: 100%; height: 200px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
+            <textarea id="textInput" name="text" placeholder="Paste your text here..."></textarea>
           </div>
           
           <div class="form-group">
@@ -209,21 +409,21 @@
           <button type="submit">Generate Audio</button>
         </form>
         
-        <div id="textStatus" class="status" style="margin-top: 15px;"></div>
+        <div id="textStatus" class="status"></div>
         <div id="audioPlayer" style="margin-top: 15px; display: none;">
-          <audio controls style="width: 100%; margin-bottom: 10px;">
+          <audio controls>
             <source id="audioSource" type="audio/mpeg">
             Your browser does not support the audio element.
           </audio>
-          <p style="font-size: 12px; color: #666; text-align: center;" id="audioInfo"></p>
+          <p class="audio-info" id="audioInfo"></p>
         </div>
       </div>
     </div>
     
-    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
+    <footer>
       <p>Book to Audio • Created: 2026-03-31 | Updated: 2026-03-31</p>
-      <p><a href="/projects" style="color: #667eea; text-decoration: none;">← Back to Projects</a></p>
-    </div>
+      <p><a href="/projects">← Back to Projects</a></p>
+    </footer>
   </div>
   
   <script>
@@ -238,12 +438,76 @@
     const submitBtn = form.querySelector('button');
     const textSubmitBtn = textForm.querySelector('button');
     
+    // Library controls
+    const openLibraryBtn = document.getElementById('openLibrary');
+    const closeLibraryBtn = document.getElementById('closeLibrary');
+    const libraryDrawer = document.getElementById('libraryDrawer');
+    const libraryOverlay = document.getElementById('libraryOverlay');
+    const libraryContent = document.getElementById('libraryContent');
+    
+    openLibraryBtn.addEventListener('click', openLibrary);
+    closeLibraryBtn.addEventListener('click', closeLibrary);
+    libraryOverlay.addEventListener('click', closeLibrary);
+    
+    function openLibrary() {
+      libraryDrawer.classList.add('open');
+      libraryOverlay.classList.add('open');
+      loadLibrary();
+    }
+    
+    function closeLibrary() {
+      libraryDrawer.classList.remove('open');
+      libraryOverlay.classList.remove('open');
+    }
+    
+    async function loadLibrary() {
+      try {
+        const response = await fetch(`${window.location.pathname}/api/library`);
+        const items = await response.json();
+        
+        if (items.length === 0) {
+          libraryContent.innerHTML = '<p style="color: #999; text-align: center;">No audio generated yet</p>';
+          return;
+        }
+        
+        libraryContent.innerHTML = items.map(item => `
+          <div class="library-item">
+            <p class="library-item-text">"${item.textPreview}"</p>
+            <div class="library-item-meta">
+              <span>${item.voice} • ${(item.size / 1024).toFixed(1)}KB</span>
+              <span>${new Date(item.timestamp).toLocaleDateString()}</span>
+            </div>
+            <audio controls style="width: 100%; margin-bottom: 10px;">
+              <source src="${window.location.pathname}/outputs/${item.filename}" type="audio/mpeg">
+            </audio>
+            <div class="library-item-controls">
+              <button class="delete-btn" onclick="deleteAudio('${item.id}')">Delete</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        libraryContent.innerHTML = `<p style="color: #c62828;">Error loading library: ${error.message}</p>`;
+      }
+    }
+    
+    async function deleteAudio(id) {
+      if (!confirm('Delete this audio?')) return;
+      
+      try {
+        await fetch(`${window.location.pathname}/api/library/${id}`, { method: 'DELETE' });
+        loadLibrary();
+      } catch (error) {
+        alert('Error deleting audio: ' + error.message);
+      }
+    }
+    
+    // File upload handler
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const file = document.getElementById('file').files[0];
       const voice = document.getElementById('voice').value;
-      const MAX_FILE_SIZE = 50 * 1024; // 50KB
+      const MAX_FILE_SIZE = 50 * 1024;
       
       if (!file) {
         showStatus('Please select a file', 'error');
@@ -259,11 +523,11 @@
       formData.append('file', file);
       formData.append('voice', voice);
       
-      showStatus(`Converting ${file.name} to audio...`, 'loading');
+      showStatus(`Converting ${file.name}...`, 'loading');
       submitBtn.disabled = true;
       
       try {
-        const response = await fetch(window.location.pathname + '/api/convert', {
+        const response = await fetch(`${window.location.pathname}/api/convert`, {
           method: 'POST',
           body: formData
         });
@@ -284,22 +548,7 @@
       }
     });
     
-    function showStatus(message, type) {
-      statusDiv.textContent = message;
-      statusDiv.className = `status ${type}`;
-    }
-    
-    function showDownloadLink(file, filename) {
-      const basename = file.split('/').pop();
-      downloadDiv.innerHTML = `
-        <a href="${window.location.pathname}/api/download/${basename}" download="${filename}">
-          ⬇️ Download MP3 (${filename})
-        </a>
-      `;
-      downloadDiv.style.display = 'block';
-    }
-    
-    // Text textarea handler
+    // Textarea handler
     textForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -323,9 +572,7 @@
       try {
         const response = await fetch(`${window.location.pathname}/api/text-to-audio`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text, voice })
         });
         
@@ -335,10 +582,10 @@
           throw new Error(data.error || 'Generation failed');
         }
         
-        audioSource.src = `data:audio/mpeg;base64,${data.audio}`;
+        audioSource.src = `${window.location.pathname}/outputs/${data.filename}`;
         audioPlayer.style.display = 'block';
-        audioInfo.textContent = `✓ Generated (${(data.size / 1024).toFixed(1)}KB)`;
-        showTextStatus(`✓ Audio ready`, 'success');
+        audioInfo.textContent = `✓ Generated (${(data.size / 1024).toFixed(1)}KB) • Cached for future use`;
+        showTextStatus(`✓ Audio ready & saved to library`, 'success');
       } catch (error) {
         showTextStatus(`✗ Error: ${error.message}`, 'error');
       } finally {
@@ -346,9 +593,24 @@
       }
     });
     
+    function showStatus(message, type) {
+      statusDiv.textContent = message;
+      statusDiv.className = `status ${type}`;
+    }
+    
     function showTextStatus(message, type) {
       textStatusDiv.textContent = message;
       textStatusDiv.className = `status ${type}`;
+    }
+    
+    function showDownloadLink(file, filename) {
+      const basename = file.split('/').pop();
+      downloadDiv.innerHTML = `
+        <a href="${window.location.pathname}/outputs/${basename}" download="${filename}">
+          ⬇️ Download MP3 (${filename})
+        </a>
+      `;
+      downloadDiv.style.display = 'block';
     }
   </script>
 </body>

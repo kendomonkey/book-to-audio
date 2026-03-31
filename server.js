@@ -3,19 +3,14 @@ const multer = require('multer');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
+app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
 
 // Trust proxy
 app.set('trust proxy', 1);
-
-// Handle reverse proxy paths
-app.use((req, res, next) => {
-  // If we're behind a proxy with a path prefix, Express won't see it
-  // The proxy should send X-Forwarded-Prefix or we extract from the original path
-  next();
-});
 
 // Read API key from secure location
 const API_KEY = fs.readFileSync('/root/.openclaw/workspace/.elevenlabs_key', 'utf-8').trim();
@@ -29,14 +24,138 @@ const VOICES = {
   'Lily': 'piTKgcLEGmPLZcj7nXlC',
 };
 
-app.use(express.static('public'));
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+// Ensure directories exist
+['uploads', 'outputs', 'library'].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 });
 
-// Convert endpoint
+app.use(express.static('public'));
+
+// Library endpoint - list all generated audio
+app.get('/api/library', (req, res) => {
+  try {
+    const libraryDir = 'library';
+    const files = fs.readdirSync(libraryDir);
+    const metadata = [];
+
+    files.forEach(file => {
+      if (file.endsWith('.json')) {
+        const metaPath = path.join(libraryDir, file);
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+        metadata.push(meta);
+      }
+    });
+
+    // Sort by timestamp, newest first
+    metadata.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    res.json(metadata);
+  } catch (error) {
+    console.error('Error reading library:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete audio from library
+app.delete('/api/library/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const metaPath = path.join('library', `${id}.json`);
+    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+    
+    // Delete both metadata and audio file
+    fs.unlinkSync(metaPath);
+    fs.unlinkSync(path.join('outputs', meta.filename));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting audio:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate audio from text (with caching)
+app.post('/api/text-to-audio', async (req, res) => {
+  try {
+    const { text, voice = 'Aria' } = req.body;
+    const MAX_CHARS = 5000;
+    
+    if (!text || text.length === 0) {
+      return res.status(400).json({ error: 'Text is empty' });
+    }
+    
+    if (text.length > MAX_CHARS) {
+      return res.status(413).json({ 
+        error: `Text too long. Maximum: ${MAX_CHARS} characters` 
+      });
+    }
+    
+    if (!VOICES[voice]) {
+      return res.status(400).json({ error: `Unknown voice: ${voice}` });
+    }
+    
+    // Create hash of text + voice for caching
+    const hash = crypto.createHash('sha256').update(text + voice).digest('hex').substring(0, 8);
+    const metaPath = path.join('library', `${hash}.json`);
+    
+    // Check if already generated
+    if (fs.existsSync(metaPath)) {
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      return res.json(meta);
+    }
+    
+    console.log(`Generating ${text.length} characters with voice ${voice}...`);
+    
+    const voiceId = VOICES[voice];
+    const url = `${ELEVENLABS_BASE}/text-to-speech/${voiceId}`;
+    
+    const response = await axios.post(url, {
+      text: text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75
+      }
+    }, {
+      headers: {
+        'xi-api-key': API_KEY,
+        'Content-Type': 'application/json'
+      },
+      responseType: 'arraybuffer'
+    });
+    
+    // Save audio file
+    const filename = `${hash}.mp3`;
+    const outputPath = path.join('outputs', filename);
+    fs.writeFileSync(outputPath, response.data);
+    
+    // Save metadata
+    const metadata = {
+      id: hash,
+      filename: filename,
+      voice: voice,
+      text: text,
+      textPreview: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+      size: response.data.length,
+      timestamp: new Date().toISOString()
+    };
+    
+    fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
+    
+    res.json(metadata);
+  } catch (error) {
+    console.error('Error:', error.message);
+    
+    if (error.response?.status === 402) {
+      return res.status(402).json({ error: 'ElevenLabs quota exceeded' });
+    }
+    
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// File upload endpoint
 app.post('/api/convert', upload.single('file'), async (req, res) => {
   try {
     const { voice = 'Aria' } = req.body;
@@ -115,61 +234,6 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     
     if (error.response?.status === 402) {
       return res.status(402).json({ error: 'ElevenLabs quota exceeded or account not upgraded' });
-    }
-    
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Text-to-audio endpoint (inline, no file)
-app.post('/api/text-to-audio', express.json(), async (req, res) => {
-  try {
-    const { text, voice = 'Aria' } = req.body;
-    const MAX_CHARS = 5000;
-    
-    if (!text || text.length === 0) {
-      return res.status(400).json({ error: 'Text is empty' });
-    }
-    
-    if (text.length > MAX_CHARS) {
-      return res.status(413).json({ 
-        error: `Text too long. Maximum: ${MAX_CHARS} characters` 
-      });
-    }
-    
-    if (!VOICES[voice]) {
-      return res.status(400).json({ error: `Unknown voice: ${voice}` });
-    }
-    
-    console.log(`Generating ${text.length} characters with voice ${voice}...`);
-    
-    const voiceId = VOICES[voice];
-    const url = `${ELEVENLABS_BASE}/text-to-speech/${voiceId}`;
-    
-    const response = await axios.post(url, {
-      text: text,
-      model_id: 'eleven_multilingual_v2',
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75
-      }
-    }, {
-      headers: {
-        'xi-api-key': API_KEY,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'arraybuffer'
-    });
-    
-    res.json({ 
-      audio: Buffer.from(response.data).toString('base64'),
-      size: response.data.length
-    });
-  } catch (error) {
-    console.error('Error:', error.message);
-    
-    if (error.response?.status === 402) {
-      return res.status(402).json({ error: 'ElevenLabs quota exceeded' });
     }
     
     res.status(500).json({ error: error.message });
