@@ -7,6 +7,16 @@ const path = require('path');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
+// Trust proxy
+app.set('trust proxy', 1);
+
+// Handle reverse proxy paths
+app.use((req, res, next) => {
+  // If we're behind a proxy with a path prefix, Express won't see it
+  // The proxy should send X-Forwarded-Prefix or we extract from the original path
+  next();
+});
+
 // Read API key from secure location
 const API_KEY = fs.readFileSync('/root/.openclaw/workspace/.elevenlabs_key', 'utf-8').trim();
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1';
@@ -113,5 +123,5 @@ app.get('/api/download/:file', (req, res) => {
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Book-to-audio server running on port ${PORT}`);
-  console.log(`Visit http://localhost:${PORT} in your browser`);
+  console.log(`Visit https://134.209.176.228/audio in your browser`);
 });
